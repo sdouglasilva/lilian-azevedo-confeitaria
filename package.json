@@ -21,6 +21,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
     "@eslint/eslintrc": "3.3.1",
+    "@netlify/plugin-nextjs": "5.15.13",
     "@types/node": "22.17.2",
     "@types/react": "19.1.10",
     "@types/react-dom": "19.1.7",
