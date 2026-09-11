@@ -53,7 +53,7 @@ export async function sendEntityEmail(id: string, kind: Kind): Promise<"sent" | 
       return "failed";
     }
     const message = kind === "intention" ? intentionMessage(context as IntentionContext) : orderMessage(kind, context as OrderContext);
-    const result = await sendEmail({ to: context.customer.email, ...message });
+    const result = await sendEmail({ to: context.customer.email, idempotencyKey: claim.key, ...message });
     if (result.status === "skipped") {
       await rpc("la_finish_email", { p_secret: secret, p_id: id, p_kind: kind, p_key: claim.key, p_status: "FAILED", p_error: "NOT_CONFIGURED" });
       return "skipped";

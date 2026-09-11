@@ -6,6 +6,7 @@ import path from "node:path";
 async function filesUnder(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => {
+    if (["node_modules", ".git", ".next", ".netlify"].includes(entry.name)) return [];
     const full = path.join(dir, entry.name);
     return entry.isDirectory() ? filesUnder(full) : [full];
   }));

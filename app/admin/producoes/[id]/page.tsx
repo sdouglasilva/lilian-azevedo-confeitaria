@@ -7,6 +7,7 @@ import { ProductionForm } from "@/components/admin/production-form";
 import { StatusChip } from "@/components/ui/status-chip";
 import { transitionOrderAction, transitionProductionAction } from "@/app/actions/admin";
 import { formatDateTime } from "@/lib/config/datetime";
+import { productionQuantities } from "@/domain/productions/quantities";
 
 export const dynamic = "force-dynamic";
 const money = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
@@ -35,9 +36,7 @@ export default async function ProductionDetail({ params, searchParams }: { param
   const [production, products, productionItems, orders, intentions] = await Promise.all([getProduction(id, session.accessToken), listProducts(session.accessToken), listProductionItems(id, session.accessToken), listOrders(id, session.accessToken), listIntentions(id, session.accessToken)]);
   if (!production) return notFound();
 
-  const confirmed = orders.filter((order) => derivedStatus(order) === "PAYMENT_CONFIRMED");
-  const produce = new Map<string, number>();
-  for (const order of confirmed) for (const item of orderItems(order)) produce.set(itemName(item), (produce.get(itemName(item)) || 0) + Number(item.quantity || 0));
+  const produce = productionQuantities(orders);
   const filter = query.filter || "all";
   const filtered = orders.filter((order) => {
     const status = derivedStatus(order);
@@ -54,7 +53,7 @@ export default async function ProductionDetail({ params, searchParams }: { param
 
     <section className="production-actions"><h2>Ações da produção</h2><div className="action-row">{production.status === "DRAFT" && <form action={transitionProductionAction.bind(null, id, "ACTIVE")}><button className="button button-primary">Publicar</button></form>}{production.status === "ACTIVE" && <><form action={transitionProductionAction.bind(null, id, "CLOSED")}><button className="button button-secondary">Encerrar</button></form><form action={transitionProductionAction.bind(null, id, "CANCELLED")}><button className="button button-danger">Cancelar produção</button></form></>}{production.status === "CLOSED" && <form action={transitionProductionAction.bind(null, id, "COMPLETED")}><button className="button button-primary">Concluir produção</button></form>}</div></section>
 
-    {production.mode === "RESERVATION" && <section className="produce-card"><span className="eyebrow">Prioridade</span><h2>Quanto produzir</h2><p>Somente pagamentos confirmados entram nesta conta.</p>{produce.size === 0 ? <div className="empty-inline">Nenhuma quantidade confirmada ainda.</div> : <ul>{[...produce.entries()].map(([name, quantity]) => <li key={name}><span>{name}</span><strong>{quantity}</strong></li>)}</ul>}</section>}
+    {production.mode === "RESERVATION" && <section className="produce-card"><span className="eyebrow">Prioridade</span><h2>Quanto produzir</h2><p>Somente pagamentos confirmados entram nesta conta.</p>{produce.length === 0 ? <div className="empty-inline">Nenhuma quantidade confirmada ainda.</div> : <ul>{produce.map(({ id, name, quantity }) => <li key={id}><span>{name}</span><strong>{quantity}</strong></li>)}</ul>}</section>}
 
     {production.mode === "RESERVATION" && <section className="ops-section"><div className="section-heading"><div><span className="eyebrow">Operação</span><h2>Pedidos</h2></div><span className="muted">{orders.filter((order) => derivedStatus(order) === "AWAITING_PAYMENT").length} pendente(s)</span></div><nav className="filter-tabs"><Link className={filter === "all" ? "active" : ""} href={`?filter=all`}>Todos</Link><Link className={filter === "pending" ? "active" : ""} href={`?filter=pending`}>Pendentes</Link><Link className={filter === "confirmed" ? "active" : ""} href={`?filter=confirmed`}>Confirmados</Link><Link className={filter === "closed" ? "active" : ""} href={`?filter=closed`}>Exp./Cancel.</Link><Link className={filter === "completed" ? "active" : ""} href={`?filter=completed`}>Concluídos</Link></nav>
       {filtered.length === 0 ? <div className="empty-inline">Nenhum pedido neste filtro.</div> : <div className="order-stack">{filtered.map((order) => { const status = derivedStatus(order); const person = customer(order); return <article className="order-card" key={String(order.id)}><div className="order-heading"><div><strong>{person.name}</strong><small>{person.phone} · {person.email}</small></div><StatusChip status={status} /></div><ul className="compact-items">{orderItems(order).map((item, index) => <li key={`${String(order.id)}-${index}`}><span>{Number(item.quantity)}× {itemName(item)}</span><span>{money(Number(item.quantity) * Number(item.unit_price_cents))}</span></li>)}</ul><div className="order-footer"><strong>{money(orderTotal(order))}</strong><div className="action-row">{status === "AWAITING_PAYMENT" && <><form action={transitionOrderAction.bind(null, id, String(order.id), "PAYMENT_CONFIRMED")}><button className="button button-primary button-small">Confirmar Pix</button></form><form action={transitionOrderAction.bind(null, id, String(order.id), "CANCELLED")}><button className="button button-danger button-small">Cancelar</button></form></>}{status === "PAYMENT_CONFIRMED" && <><form action={transitionOrderAction.bind(null, id, String(order.id), "COMPLETED")}><button className="button button-primary button-small">Concluir pedido</button></form><form action={transitionOrderAction.bind(null, id, String(order.id), "CANCELLED")}><button className="button button-danger button-small">Cancelar</button></form></>}</div></div></article>; })}</div>}

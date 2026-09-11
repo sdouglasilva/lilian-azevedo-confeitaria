@@ -1,6 +1,6 @@
-import { emailConfig } from "@/lib/config/env";
+import { emailConfig } from "../config/env.ts";
 
-export type EmailMessage = { to: string; subject: string; html: string };
+export type EmailMessage = { to: string; subject: string; html: string; idempotencyKey: string };
 export type EmailSendResult = { status: "sent" | "skipped"; providerId?: string };
 
 const domainOnly = (email: string) => email.split("@")[1] || "invalid";
@@ -19,9 +19,11 @@ export async function sendEmail(message: EmailMessage): Promise<EmailSendResult>
       to: [{ email: message.to }],
       subject: message.subject,
       htmlContent: message.html,
+      headers: { idempotencyKey: message.idempotencyKey },
     }),
   });
   const body = await response.json().catch(() => ({}));
+  if (!response.ok && body.code === "duplicate_parameter" && /idempotency/i.test(String(body.message))) return { status: "sent" };
   if (!response.ok) throw new Error(`BREVO_${response.status}`);
   return { status: "sent", providerId: body.messageId || undefined };
 }

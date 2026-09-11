@@ -7,6 +7,7 @@ import { rpc } from "@/lib/supabase/rest";
 import { uploadProductImage } from "@/lib/storage/products";
 import { sendEntityEmail } from "@/lib/email/transactional";
 import { zonedLocalToIso } from "@/lib/config/datetime";
+import { validateProductImage } from "@/lib/validation/image";
 
 const cents = (value: FormDataEntryValue | null): number | null => {
   const text = String(value || "").trim().replace(",", ".");
@@ -25,10 +26,12 @@ export async function saveProductAction(formData: FormData) {
   const session = await requireAdmin();
   const existingId = String(formData.get("id") || "") || null;
   const name = String(formData.get("name") || "").trim();
-  if (!name) redirect("/admin/produtos?error=name");
+  if (!name) return { error: "Informe o nome do produto." };
   const currentImage = String(formData.get("image_path") || "") || null;
-  let id: string;
+  let id: string | undefined;
   try {
+    const file = formData.get("image");
+    if (file instanceof File && file.size > 0) await validateProductImage(file);
     id = await rpc<string>("la_save_product", {
       p_id: existingId,
       p_data: {
@@ -39,7 +42,6 @@ export async function saveProductAction(formData: FormData) {
         image_path: currentImage,
       },
     }, { accessToken: session.accessToken });
-    const file = formData.get("image");
     if (file instanceof File && file.size > 0) {
       const imagePath = await uploadProductImage(id, file, session.accessToken);
       await rpc("la_save_product", {
@@ -54,7 +56,7 @@ export async function saveProductAction(formData: FormData) {
       }, { accessToken: session.accessToken });
     }
   } catch {
-    redirect("/admin/produtos?error=save");
+    return { id, error: id ? "Produto salvo, mas a foto não foi concluída. Tente salvar novamente para reenviar a imagem." : "Não foi possível concluir. Revise os dados e use uma imagem WebP válida de até 5 MB." };
   }
   revalidatePath("/admin/produtos");
   redirect("/admin/produtos?saved=1");
@@ -64,7 +66,7 @@ export async function saveProductionAction(formData: FormData) {
   const session = await requireAdmin();
   const id = String(formData.get("id") || "") || null;
   const selected = formData.getAll("product_id").map(String);
-  if (!selected.length) redirect(id ? `/admin/producoes/${id}?error=items` : "/admin/producoes/nova?error=items");
+  if (!selected.length) return { error: "Selecione ao menos um produto." };
   const items = selected.map((productId) => ({
     product_id: productId,
     price_cents: cents(formData.get(`price_${productId}`)),
@@ -88,7 +90,7 @@ export async function saveProductionAction(formData: FormData) {
     redirect(`/admin/producoes/${savedId}?saved=1`);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
-    redirect(id ? `/admin/producoes/${id}?error=save` : "/admin/producoes/nova?error=save");
+    return { error: "Não foi possível salvar. Revise datas, preços e capacidades. Seus dados foram mantidos." };
   }
 }
 

@@ -3,6 +3,7 @@ import { listProducts } from "@/lib/supabase/admin-data";
 import { publicImageUrl } from "@/lib/supabase/rest";
 import { saveProductAction } from "@/app/actions/admin";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { SaveForm } from "@/components/admin/save-form";
 
 export const dynamic = "force-dynamic";
 const reais = (cents: number | null) => cents == null ? "" : (cents / 100).toFixed(2).replace(".", ",");
@@ -17,7 +18,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 }
 
 function ProductForm({ product, imageUrl }: { product?: Awaited<ReturnType<typeof listProducts>>[number]; imageUrl?: string | null }) {
-  return <form action={saveProductAction} className="form-grid editor-form" encType="multipart/form-data">
+  return <SaveForm action={saveProductAction} className="form-grid editor-form">
     {product && <input type="hidden" name="id" value={product.id} />}{product?.image_path && <input type="hidden" name="image_path" value={product.image_path} />}
     {imageUrl && <div className="admin-thumb"><img src={imageUrl} alt={`Foto atual de ${product?.name}`} /></div>}
     <label>Nome<input name="name" required maxLength={120} defaultValue={product?.name || ""} /></label>
@@ -26,5 +27,5 @@ function ProductForm({ product, imageUrl }: { product?: Awaited<ReturnType<typeo
     <label>Status<select name="status" defaultValue={product?.status || "ACTIVE"}><option value="ACTIVE">Ativo</option><option value="INACTIVE">Inativo</option></select></label>
     <label>Foto WebP (máx. 5 MB)<input type="file" name="image" accept="image/webp,.webp" /></label>
     <button className="button button-primary" type="submit">{product ? "Salvar alterações" : "Criar produto"}</button>
-  </form>;
+  </SaveForm>;
 }

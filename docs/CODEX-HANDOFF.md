@@ -1,5 +1,22 @@
 # CODEX HANDOFF — LA Confeitaria Artesanal
 
+## Current execution status — 2026-09-11
+
+- Restored from the canonical bootstrap bundle on `main`.
+- Fixed admin forms so failed saves preserve the user's entered data.
+- Product uploads now validate WebP extension, MIME, signature and the 5 MB limit before saving.
+- The server-action upload limit is aligned with the 5 MB product-image requirement.
+- “Quanto produzir” groups by product ID, so products with identical names are not merged.
+- Brevo requests now reuse the database delivery UUID as the provider idempotency key.
+- Added PostgreSQL integration coverage for multi-item orders, capacity, retry, cancellation, expiration, survey intentions, state transitions, email receipts and RLS.
+- Added GitHub quality gates and explicit Netlify build configuration.
+- Verified locally: 30 tests, lint, typecheck, production build, HTTP route checks and desktop/mobile browser rendering.
+- Supabase production has no Production records yet, so a complete real customer/admin smoke requires the first production to be created after deployment.
+- External blockers: GitHub write returned `403 Resource not accessible by integration`; production Netlify still points to the earlier raw-upload deploy until the validated source reaches GitHub or a supported Netlify build deploy is triggered.
+- Netlify environment review found `BRAVO_API_KEY` instead of the required `BREVO_API_KEY`; the stored value was not copied because it did not match a recognized Brevo API-key format.
+
+Exact continuation: authorize GitHub write for `sdouglasilva/lilian-azevedo-confeitaria`, push `main`, connect that repository to the existing Netlify site `adc61111-1049-41c2-b89d-09f09dc9aea0`, set a valid secret `BREVO_API_KEY`, deploy through the normal Next.js build integration, then run the production smoke described in the canonical pack.
+
 ## Mission
 
 Take this repository as the **real code baseline**. Inspect the filesystem and implementation before changing anything.
